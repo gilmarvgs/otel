@@ -109,3 +109,26 @@ Notas úteis
 Contato
 
 Se quiser, eu posso também aplicar pequenas melhorias (fallback `API_KEY`, logs adicionais no handler) e preparar um script automatizado de CI para rodar os testes. Basta pedir.
+
+## Serviço em produção
+
+O serviço está publicado no Cloud Run e pode ser acessado publicamente:
+
+URL pública:
+https://cep-weather-159243952130.us-central1.run.app
+
+Exemplo de uso:
+- Navegador:
+	https://cep-weather-159243952130.us-central1.run.app/?cep=01001000
+
+- curl:
+	```bash
+	curl "https://cep-weather-159243952130.us-central1.run.app/?cep=01001000"
+	```
+
+- PowerShell:
+	```powershell
+	Invoke-RestMethod -Uri "https://cep-weather-159243952130.us-central1.run.app/?cep=01001000" -Method Get
+	```
+
+Nota: o parâmetro esperado é `cep` com 8 dígitos (ex.: 01001000). Não é necessário fornecer a WeatherAPI key — a chave é utilizada internamente pelo serviço.
