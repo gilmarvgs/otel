@@ -1,0 +1,5 @@
+.env
+.DS_Store
+# Go build artifacts
+bin/
+**/*_testcache
