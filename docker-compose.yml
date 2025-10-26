@@ -1,7 +1,59 @@
+# Versão do Docker Compose
+version: '3.8'
+
+# Definição dos serviços
 services:
-  cep-weather:
-    build: .
+  # Configuração do Serviço A - Responsável pela entrada de dados
+  service-a:
+    # Configuração de build do serviço
+    build:
+      # Diretório onde está o Dockerfile
+      context: .
+      # Nome do arquivo Dockerfile
+      dockerfile: Dockerfile
+    # Comando para executar o serviço
+    command: ./service-a
+    # Mapeamento de portas (porta_host:porta_container)
     ports:
       - "8080:8080"
-    env_file:
-      - .env
+    # Variáveis de ambiente do serviço
+    environment:
+      # URL para comunicação com o Serviço B
+      - SERVICE_B_URL=http://service-b:8081/weather
+      # Porta em que o serviço irá rodar
+      - PORT=8080
+    # Dependências que precisam estar rodando antes deste serviço
+    depends_on:
+      - service-b
+      - zipkin
+
+  # Configuração do Serviço B - Responsável pelo processamento
+  service-b:
+    # Configuração de build do serviço
+    build:
+      # Diretório onde está o Dockerfile
+      context: .
+      # Nome do arquivo Dockerfile
+      dockerfile: Dockerfile
+    # Comando para executar o serviço
+    command: ./service-b
+    # Mapeamento de portas (porta_host:porta_container)
+    ports:
+      - "8081:8081"
+    # Variáveis de ambiente do serviço
+    environment:
+      # Porta em que o serviço irá rodar
+      - PORT=8081
+      # Chave da API do WeatherAPI (obtida das variáveis de ambiente do host)
+      - WEATHER_API_KEY=${WEATHER_API_KEY}
+    # Dependências que precisam estar rodando antes deste serviço
+    depends_on:
+      - zipkin
+
+  # Configuração do Zipkin - Serviço de rastreamento distribuído
+  zipkin:
+    # Imagem do Docker Hub para o Zipkin
+    image: openzipkin/zipkin:latest
+    # Mapeamento de portas (porta_host:porta_container)
+    ports:
+      - "9411:9411"

@@ -1,134 +1,95 @@
-# CEP Weather — Entrega
+# Sistema de Consulta de Temperatura por CEP
 
-Este repositório contém um microserviço em Go que recebe um CEP (query param `cep`) e retorna a temperatura atual (C/F/K) consultando uma API de clima.
+Este projeto consiste em dois microserviços que trabalham em conjunto para fornecer informações de temperatura com base em um CEP fornecido. O sistema utiliza OpenTelemetry para rastreamento distribuído e Zipkin para visualização dos traces.
 
-Conteúdo da entrega
+## Requisitos
 
-- Código-fonte completo (neste repositório).
-- Testes automatizados para `internal/weather` (httptest).
-- Suporte a execução local via Docker / docker-compose.
-- Instruções de deploy para Google Cloud Run.
+- Docker e Docker Compose
+- Chave de API do WeatherAPI (https://www.weatherapi.com/)
 
-Requisitos
+## Configuração
 
-- Go 1.20+ (ou versão compatível instalada localmente).
-- Docker & docker-compose para execução local em container.
-- gcloud CLI configurado (se for usar o deploy para Cloud Run).
-
-Executando testes locais
-
-1. Na raiz do projeto rode:
-
+1. Clone o repositório:
 ```bash
-go test ./...
+git clone https://github.com/gilmarvgs/cep-weather.git
+cd cep-weather
 ```
 
-Os testes de `internal/weather` usam um servidor HTTP fake (httptest) e não fazem chamadas externas.
-
-Executando a aplicação localmente (sem Docker)
-
-Defina a variável de ambiente `WEATHER_API_KEY` e execute:
-
-Windows PowerShell
-```powershell
-$env:WEATHER_API_KEY = 'sua_chave'
-go run ./cmd
-```
-
-Linux / macOS
+2. Configure a variável de ambiente da API do WeatherAPI:
 ```bash
-export WEATHER_API_KEY="sua_chave"
-go run ./cmd
+export WEATHER_API_KEY=sua_chave_api_aqui
 ```
 
-A aplicação expõe a porta 8080. A URL de teste local (quando roda local): `http://localhost:8080/?cep=01001000`.
+## Executando o Projeto
 
-Executando com Docker / docker-compose
-
-O `docker-compose.yml` carrega variáveis sensíveis a partir de um arquivo local `.env` (nunca comitado).
-Antes de subir com Docker Compose, crie um `.env` a partir do exemplo e insira a sua chave:
-
-Windows PowerShell
-```powershell
-Copy-Item .env.example .env
-notepad .env  # substituir REPLACE_WITH_YOUR_KEY pela sua chave real
+1. Inicie os serviços usando Docker Compose:
+```bash
 docker-compose up --build
 ```
 
-Linux / macOS
+Isso irá iniciar:
+- Service A na porta 8080
+- Service B na porta 8081
+- Zipkin na porta 9411
+
+## Como Usar
+
+1. Para consultar a temperatura de um CEP, envie uma requisição POST para o Service A:
+
 ```bash
-cp .env.example .env
-# edite .env e substitua REPLACE_WITH_YOUR_KEY pela sua chave real
-docker-compose up --build
+curl -X POST http://localhost:8080/weather \
+  -H "Content-Type: application/json" \
+  -d '{"cep": "29902555"}'
 ```
 
-O serviço ficará acessível em `http://localhost:8080`.
+### Exemplo de Resposta de Sucesso:
 
-Deploy no Google Cloud Run (instruções)
-
-1. Faça o build e envie a imagem para o Container Registry / Artifact Registry:
-
-```powershell
-gcloud builds submit --tag gcr.io/<PROJECT_ID>/cep-weather
+```json
+{
+  "city": "São Paulo",
+  "temp_C": 28.5,
+  "temp_F": 83.3,
+  "temp_K": 301.5
+}
 ```
 
-2. Faça o deploy no Cloud Run (substitua `<PROJECT_ID>` e ajuste a região se necessário). Defina a variável de ambiente `WEATHER_API_KEY` durante o deploy:
+### Possíveis Códigos de Erro:
 
-```powershell
-gcloud run deploy cep-weather --image gcr.io/<PROJECT_ID>/cep-weather --region us-central1 --platform managed --set-env-vars WEATHER_API_KEY=seu_valor_de_api_key
+- 422: CEP inválido
+- 404: CEP não encontrado
+- 500: Erro interno do servidor
+
+## Monitoramento e Tracing
+
+O sistema utiliza OpenTelemetry para gerar traces distribuídos que podem ser visualizados no Zipkin:
+
+1. Acesse o Zipkin UI: http://localhost:9411
+2. Use a interface para visualizar os traces das requisições
+
+## Estrutura do Projeto
+
+- `service-a/`: Serviço responsável pelo input e validação do CEP
+- `service-b/`: Serviço responsável pela consulta de localização e temperatura
+- `internal/`: Pacotes compartilhados entre os serviços
+  - `location/`: Cliente para a API ViaCEP
+  - `weather/`: Cliente para a API WeatherAPI
+  - `telemetry/`: Configuração do OpenTelemetry
+
+## Desenvolvimento
+
+Para executar o projeto em ambiente de desenvolvimento sem Docker:
+
+1. Instale as dependências:
+```bash
+go mod download
 ```
 
-3. Verifique a variável de ambiente configurada e a URL do serviço:
-
-```powershell
-gcloud run services describe cep-weather --region us-central1 --format="yaml"
+2. Execute o Service B:
+```bash
+WEATHER_API_KEY=sua_chave_api PORT=8081 go run service-b/main.go
 ```
 
-Logs
-
-- Para ver logs históricos (ex.: últimos 1h) via gcloud:
-
-```powershell
-gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name="cep-weather"' --limit=200 --freshness=1h --project=<PROJECT_ID> --format="yaml"
+3. Em outro terminal, execute o Service A:
+```bash
+PORT=8080 SERVICE_B_URL=http://localhost:8081/weather go run service-a/main.go
 ```
-
-- Para ver apenas as mensagens do stdout (where the app prints diagnostics):
-
-```powershell
-gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name="cep-weather" AND logName="projects/<PROJECT_ID>/logs/run.googleapis.com%2Fstdout"' --limit=200 --project=<PROJECT_ID>
-```
-
-Notas úteis
-
-- O código espera por um query param `cep` com exatamente 8 dígitos: `?cep=01001000`.
-- Se preferir que o serviço aceite CEPs formatados (ex.: `01001-000`) posso aplicar uma normalização no `cmd/main.go`.
-- Os testes adicionados cobrem casos de sucesso, erro da API e falta de chave.
-- Onde obter a API key: este projeto usa a WeatherAPI (ex.: https://www.weatherapi.com/). Registre-se lá para obter a sua chave de teste/produção.
-- Segurança: NÃO comite o arquivo `.env` com chaves reais. Use `.env.example` com placeholders e inclua `.env` no `.gitignore` (já configurado).
-
-Contato
-
-Se quiser, eu posso também aplicar pequenas melhorias (fallback `API_KEY`, logs adicionais no handler) e preparar um script automatizado de CI para rodar os testes. Basta pedir.
-
-## Serviço em produção
-
-O serviço está publicado no Cloud Run e pode ser acessado publicamente:
-
-URL pública:
-https://cep-weather-159243952130.us-central1.run.app
-
-Exemplo de uso:
-- Navegador:
-	https://cep-weather-159243952130.us-central1.run.app/?cep=01001000
-
-- curl:
-	```bash
-	curl "https://cep-weather-159243952130.us-central1.run.app/?cep=01001000"
-	```
-
-- PowerShell:
-	```powershell
-	Invoke-RestMethod -Uri "https://cep-weather-159243952130.us-central1.run.app/?cep=01001000" -Method Get
-	```
-
-Nota: o parâmetro esperado é `cep` com 8 dígitos (ex.: 01001000). Não é necessário fornecer a WeatherAPI key — a chave é utilizada internamente pelo serviço.
