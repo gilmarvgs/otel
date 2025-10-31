@@ -1,6 +1,7 @@
 package location
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -21,7 +22,8 @@ func TestGetLocationByCEP(t *testing.T) {
 	BaseURL = ts.URL + "/%s/json"
 	defer func() { BaseURL = originalBaseURL }()
 
-	loc, err := GetLocationByCEP("12345678")
+	ctx := context.Background()
+	loc, err := GetLocationByCEP(ctx, "12345678")
 	if err != nil {
 		t.Errorf("Erro inesperado: %v", err)
 	}

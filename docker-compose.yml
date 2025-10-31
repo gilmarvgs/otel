@@ -22,6 +22,8 @@ services:
       - SERVICE_B_URL=http://service-b:8081/weather
       # Porta em que o serviço irá rodar
       - PORT=8080
+      # URL do Zipkin para rastreamento distribuído
+      - ZIPKIN_URL=http://zipkin:9411/api/v2/spans
     # Dependências que precisam estar rodando antes deste serviço
     depends_on:
       - service-b
@@ -46,6 +48,8 @@ services:
       - PORT=8081
       # Chave da API do WeatherAPI (obtida das variáveis de ambiente do host)
       - WEATHER_API_KEY=${WEATHER_API_KEY}
+      # URL do Zipkin para rastreamento distribuído
+      - ZIPKIN_URL=http://zipkin:9411/api/v2/spans
     # Dependências que precisam estar rodando antes deste serviço
     depends_on:
       - zipkin

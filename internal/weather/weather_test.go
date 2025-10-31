@@ -1,6 +1,7 @@
 package weather
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -23,7 +24,8 @@ func TestGetTemperature_Success(t *testing.T) {
 	os.Setenv("WEATHER_API_KEY", "testkey")
 	defer os.Setenv("WEATHER_API_KEY", origKey)
 
-	temp, err := GetTemperature("Sao Paulo")
+	ctx := context.Background()
+	temp, err := GetTemperature(ctx, "Sao Paulo")
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -48,7 +50,8 @@ func TestGetTemperature_ApiError(t *testing.T) {
 	os.Setenv("WEATHER_API_KEY", "badkey")
 	defer os.Setenv("WEATHER_API_KEY", origKey)
 
-	_, err := GetTemperature("Sao Paulo")
+	ctx := context.Background()
+	_, err := GetTemperature(ctx, "Sao Paulo")
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}
@@ -67,7 +70,8 @@ func TestGetTemperature_NoApiKey(t *testing.T) {
 	ApiURL = "https://example.invalid/?key=%s&q=%s"
 	defer func() { ApiURL = origApiURL }()
 
-	_, err := GetTemperature("Sao Paulo")
+	ctx := context.Background()
+	_, err := GetTemperature(ctx, "Sao Paulo")
 	if err == nil || err.Error() != "WEATHER_API_KEY not set" {
 		t.Fatalf("expected WEATHER_API_KEY not set error, got %v", err)
 	}
